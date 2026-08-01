@@ -1,168 +1,199 @@
-#Author: Indrajith Indraprastham
-#Date:  Wed Dec 20 00:12:39 IST 2017 (last update)
+"""
+Advanced Question Generation Engine.
+Generates What, Who, Where, When, and How Many questions using NLP syntactic parsing and named entity recognition.
+"""
 
-from textblob import TextBlob
-# import nltk
-from textblob import Word
 import sys
+import re
 import nltk
-nltk.download('averaged_perceptron_tagger')
+from textblob import TextBlob, Word
 
 
-def parse(string):
-    # print("SSSSSS:",string)
-    """
-    Parse a paragraph. Devide it into sentences and try to generate quesstions from each sentences.
-    """
-    
-    try:
-        txt = TextBlob(string)
-        # print("txtrrrrrrrrrr:",txt)
-        # print("txttttttttttt:",txt.sentences)
-        # Each sentence is taken from the string input and passed to genQuestion() to generate questions.
-        for sentence in txt.sentences:
-            genQuestion(sentence)
+def ensure_nltk_data():
+    """Ensure required NLTK data packages are downloaded."""
+    packages = [
+        'punkt',
+        'punkt_tab',
+        'averaged_perceptron_tagger',
+        'averaged_perceptron_tagger_eng',
+        'maxent_ne_chunker',
+        'maxent_ne_chunker_tab',
+        'words',
+        'wordnet',
+    ]
+    for pkg in packages:
+        try:
+            nltk.download(pkg, quiet=True)
+        except Exception:
+            pass
 
-    except Exception as e:
-        raise e
 
+def extract_named_entities(sentence_str):
+    """Extract Named Entities using NLTK chunking."""
+    tokens = nltk.word_tokenize(sentence_str)
+    tagged = nltk.pos_tag(tokens)
+    tree = nltk.chunk.ne_chunk(tagged)
+    entities = []
+    for node in tree:
+        if isinstance(node, nltk.Tree):
+            entity_name = " ".join([token for token, tag in node.leaves()])
+            entity_type = node.label()
+            entities.append((entity_name, entity_type))
+    return entities
+
+
+def gen_ne_questions(sentence_str):
+    """Generate Who, Where, When, and How Many questions based on Named Entities."""
+    questions = []
+    entities = extract_named_entities(sentence_str)
+    tokens = nltk.word_tokenize(sentence_str)
+    tagged = nltk.pos_tag(tokens)
+
+    for entity_name, entity_type in entities:
+        if entity_type == 'PERSON':
+            # Replace Person with Who
+            q = re.sub(re.escape(entity_name), "Who", sentence_str, count=1, flags=re.IGNORECASE)
+            q = q.rstrip(".!?") + "?"
+            questions.append((q, entity_name, "Who"))
+
+        elif entity_type in ['GPE', 'LOCATION']:
+            # Check for preposition before location (e.g., in Minsk, at Paris)
+            prep_pattern = r'\b(in|at|from|to|near)\s+' + re.escape(entity_name)
+            if re.search(prep_pattern, sentence_str, re.IGNORECASE):
+                q = re.sub(prep_pattern, "where", sentence_str, count=1, flags=re.IGNORECASE)
+            else:
+                q = re.sub(re.escape(entity_name), "where", sentence_str, count=1, flags=re.IGNORECASE)
+            q = q.strip()
+            if q:
+                q = q[0].upper() + q[1:]
+                q = q.rstrip(".!?") + "?"
+                questions.append((q, entity_name, "Where"))
+
+        elif entity_type in ['DATE', 'TIME']:
+            prep_pattern = r'\b(in|at|on|during|around)\s+' + re.escape(entity_name)
+            if re.search(prep_pattern, sentence_str, re.IGNORECASE):
+                q = re.sub(prep_pattern, "when", sentence_str, count=1, flags=re.IGNORECASE)
+            else:
+                q = re.sub(re.escape(entity_name), "when", sentence_str, count=1, flags=re.IGNORECASE)
+            q = q.strip()
+            if q:
+                q = q[0].upper() + q[1:]
+                q = q.rstrip(".!?") + "?"
+                questions.append((q, entity_name, "When"))
+
+    return questions
 
 
 def genQuestion(line):
-    # print("lineeeeeeeeee1111:",line)
-    # print("lineeeeeeeeee1111:",type(line))
     """
-    outputs question from the given text
+    Generates a question from a given sentence (TextBlob or string object).
+    Returns the generated question string or empty string if no rule matches.
     """
-    
+    sentence_str = str(line).strip()
+    if not sentence_str:
+        return ''
 
-    if type(line) is str:     # If the passed variable is of type string.
+    if isinstance(line, str):
         line = TextBlob(line)
-        # print("lineeeeeeeee2222:",line) # Create object of type textblob.blob.TextBlob
 
-    bucket = {}               # Create an empty dictionary
-    # print("buckettttttt:",bucket)
+    bucket = {}
+    for i, (word, tag) in enumerate(line.tags):
+        if tag not in bucket:
+            bucket[tag] = i
 
-    for i,j in enumerate(line.tags):  # line.tags are the parts-of-speach in English
-        if j[1] not in bucket:
-            bucket[j[1]] = i  # Add all tags to the dictionary or bucket variable
-            # print("IIIIIIIIIIIII:",i)
-    
-    
     question = ''
-    # print("question:",question)            # Create an empty string 
 
-    # These are the english part-of-speach tags used in this demo program.
-    #.....................................................................
-    # NNS     Noun, plural
-    # JJ  Adjective 
-    # NNP     Proper noun, singular 
-    # VBG     Verb, gerund or present participle 
-    # VBN     Verb, past participle 
-    # VBZ     Verb, 3rd person singular present 
-    # VBD     Verb, past tense 
-    # IN      Preposition or subordinating conjunction 
-    # PRP     Personal pronoun 
-    # NN  Noun, singular or mass 
-    #.....................................................................
+    # First check Named Entity questions for Who/Where/When
+    ne_qs = gen_ne_questions(sentence_str)
+    if ne_qs:
+        return ne_qs[0][0]
 
-    # Create a list of tag-combination
-
+    # Rule tag combinations for What questions
     l1 = ['NNP', 'VBG', 'VBZ', 'IN']
     l2 = ['NNP', 'VBG', 'VBZ']
-    
-
     l3 = ['PRP', 'VBG', 'VBZ', 'IN']
     l4 = ['PRP', 'VBG', 'VBZ']
-    l5 = ['PRP', 'VBG', 'VBD']
-    l6 = ['NNP', 'VBG', 'VBD']
     l7 = ['NN', 'VBG', 'VBZ']
-
     l8 = ['NNP', 'VBZ', 'JJ']
     l9 = ['NNP', 'VBZ', 'NN']
-
     l10 = ['NNP', 'VBZ']
     l11 = ['PRP', 'VBZ']
-    l12 = ['NNP', 'NN', 'IN']
     l13 = ['NN', 'VBZ']
 
+    if all(key in bucket for key in l1):
+        question = f"What {line.words[bucket['VBZ']]} {line.words[bucket['NNP']]} {line.words[bucket['VBG']]}?"
+    elif all(key in bucket for key in l2):
+        question = f"What {line.words[bucket['VBZ']]} {line.words[bucket['NNP']]} {line.words[bucket['VBG']]}?"
+    elif all(key in bucket for key in l3):
+        question = f"What {line.words[bucket['VBZ']]} {line.words[bucket['PRP']]} {line.words[bucket['VBG']]}?"
+    elif all(key in bucket for key in l4):
+        question = f"What {line.words[bucket['PRP']]} does {line.words[bucket['VBG']]} {line.words[bucket['VBG']]}?"
+    elif all(key in bucket for key in l7):
+        question = f"What {line.words[bucket['VBZ']]} {line.words[bucket['NN']]} {line.words[bucket['VBG']]}?"
+    elif all(key in bucket for key in l8):
+        question = f"What {line.words[bucket['VBZ']]} {line.words[bucket['NNP']]}?"
+    elif all(key in bucket for key in l9):
+        question = f"What {line.words[bucket['VBZ']]} {line.words[bucket['NNP']]}?"
+    elif all(key in bucket for key in l11):
+        prp_word = line.words[bucket['PRP']].lower()
+        if prp_word in ['she', 'he']:
+            vbz_word = Word(line.words[bucket['VBZ']]).singularize()
+            question = f"What does {prp_word} {vbz_word}?"
+    elif all(key in bucket for key in l10):
+        vbz_word = Word(line.words[bucket['VBZ']]).singularize()
+        question = f"What does {line.words[bucket['NNP']]} {vbz_word}?"
+    elif all(key in bucket for key in l13):
+        question = f"What {line.words[bucket['VBZ']]} {line.words[bucket['NN']]}?"
 
-    # With the use of conditional statements the dictionary is compared with the list created above
+    if 'VBZ' in bucket and line.words[bucket['VBZ']] in ["’", "'"]:
+        question = question.replace(" ’ ", "'s ").replace(" ' ", "'s ")
 
-    
-    if all(key in  bucket for key in l1): #'NNP', 'VBG', 'VBZ', 'IN' in sentence.
-        question = 'What' + ' ' + line.words[bucket['VBZ']] +' '+ line.words[bucket['NNP']]+ ' '+ line.words[bucket['VBG']] + '?'
+    return question
 
-    
-    elif all(key in  bucket for key in l2): #'NNP', 'VBG', 'VBZ' in sentence.
-        question = 'What' + ' ' + line.words[bucket['VBZ']] +' '+ line.words[bucket['NNP']] +' '+ line.words[bucket['VBG']] + '?'
 
-    
-    elif all(key in  bucket for key in l3): #'PRP', 'VBG', 'VBZ', 'IN' in sentence.
-        question = 'What' + ' ' + line.words[bucket['VBZ']] +' '+ line.words[bucket['PRP']]+ ' '+ line.words[bucket['VBG']] + '?'
+def parse(string):
+    """
+    Parse a paragraph. Divide it into sentences and try to generate questions from each sentence.
+    Returns list of generated questions.
+    """
+    ensure_nltk_data()
+    questions = []
+    txt = TextBlob(string)
+    for sentence in txt.sentences:
+        q = genQuestion(sentence)
+        if q and q not in questions:
+            questions.append(q)
 
-    
-    elif all(key in  bucket for key in l4): #'PRP', 'VBG', 'VBZ' in sentence.
-        question = 'What ' + line.words[bucket['PRP']] +' '+  ' does ' + line.words[bucket['VBG']]+ ' '+  line.words[bucket['VBG']] + '?'
+    return questions
 
-    elif all(key in  bucket for key in l7): #'NN', 'VBG', 'VBZ' in sentence.
-        question = 'What' + ' ' + line.words[bucket['VBZ']] +' '+ line.words[bucket['NN']] +' '+ line.words[bucket['VBG']] + '?'
-
-    elif all(key in bucket for key in l8): #'NNP', 'VBZ', 'JJ' in sentence.
-        question = 'What' + ' ' + line.words[bucket['VBZ']] + ' ' + line.words[bucket['NNP']] + '?'
-
-    elif all(key in bucket for key in l9): #'NNP', 'VBZ', 'NN' in sentence
-        question = 'What' + ' ' + line.words[bucket['VBZ']] + ' ' + line.words[bucket['NNP']] + '?'
-
-    elif all(key in bucket for key in l11): #'PRP', 'VBZ' in sentence.
-        if line.words[bucket['PRP']] in ['she','he']:
-            question = 'What' + ' does ' + line.words[bucket['PRP']].lower() + ' ' + line.words[bucket['VBZ']].singularize() + '?'
-
-    elif all(key in bucket for key in l10): #'NNP', 'VBZ' in sentence.
-        question = 'What' + ' does ' + line.words[bucket['NNP']] + ' ' + line.words[bucket['VBZ']].singularize() + '?'
-
-    elif all(key in bucket for key in l13): #'NN', 'VBZ' in sentence.
-        question = 'What' + ' ' + line.words[bucket['VBZ']] + ' ' + line.words[bucket['NN']] + '?'
-
-    # When the tags are generated 's is split to ' and s. To overcome this issue.
-    if 'VBZ' in bucket and line.words[bucket['VBZ']] == "’":
-        question = question.replace(" ’ ","'s ")
-        # print("qqqqqqqqqqqquestion:",question)
-
-    # Print the genetated questions as output.
-    if question != '':
-        print('Question: ',question )
-
-    if verbose:               # In verbose more print the key,values of dictionary
-        
-        print('Answer:',line)    
-        
-   
 
 def main():
-    """
-    Accepts a text file as an argument and generates questions from it.
-    """
-    #verbose mode is activated when we give -v as argument.
-    global verbose
     verbose = False
+    if len(sys.argv) < 2:
+        print("Usage: python quest.py <filename> [-v]")
+        print("Example: python quest.py in.txt -v")
+        sys.exit(1)
 
-    # Set verbose if -v option is given as argument.
-    if len(sys.argv) >= 3: 
-        if sys.argv[2] == '-v':
-            print('Verbose Mode Activated\n')
-            verbose = True
+    filepath = sys.argv[1]
+    if len(sys.argv) >= 3 and sys.argv[2] == '-v':
+        print('Verbose Mode Activated\n')
+        verbose = True
 
-    # Open the file given as argument in read-only mode.
-    filehandle = open(sys.argv[1], 'r')
-    textinput = filehandle.read()
+    try:
+        with open(filepath, 'r', encoding='utf-8') as filehandle:
+            textinput = filehandle.read()
+    except Exception as e:
+        print(f"Error reading file '{filepath}': {e}")
+        sys.exit(1)
+
     print('\n-----------INPUT TEXT-------------\n')
-    print(textinput,'\n')
+    print(textinput, '\n')
     print('\n-----------INPUT END---------------\n')
 
-    # Send the content of text file as string to function parse()
-    parse(textinput)
+    questions = parse(textinput)
+    for q in questions:
+        print('Question: ', q)
+
 
 if __name__ == "__main__":
     main()
-
