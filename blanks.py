@@ -105,7 +105,7 @@ def generate_blanks_questions(text):
 
 
 def main():
-    filename = sys.argv[1] if len(sys.argv) > 1 else 'file1.txt'
+    filename = sys.argv[1] if len(sys.argv) > 1 else 'in.txt'
 
     try:
         with open(filename, 'r', encoding='utf-8') as f:
