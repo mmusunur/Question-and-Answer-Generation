@@ -1,18 +1,18 @@
-# Automatic Question and Answer Generation
+# Automatic Question and Answer Generation Engine
 
-This repository generates questions (Factual Questions, Fill-in-the-Blanks, and Multiple-Choice Questions) from input text using Natural Language Processing (NLP) with **TextBlob** and **NLTK**.
+An advanced NLP-powered Question and Answer Generation Engine that generates **Factual Questions** (What, Who, Where, When), **Fill-in-the-Blanks**, and **Multiple-Choice Questions (MCQs)** with smart distractor generation using **TextBlob**, **NLTK**, and **WordNet**.
 
-Updated and modernized for Python **3.10+**, **NLTK 3.9+**, and **TextBlob 0.20+**.
+Updated, modernized, and expanded for **Python 3.10+**, **NLTK 3.9+**, and **TextBlob 0.20+**.
 
 ---
 
-## Features
+## Highlights & Performance Enhancements
 
-- **Factual Question Generation (`quest.py`)**: Generates "What" questions based on Part-of-Speech (POS) grammar patterns.
-- **Fill-in-the-Blanks Generator (`blanks.py` & `blanks1.py`)**: Replaces proper nouns or common nouns with blanks and creates distractor options for multiple-choice quizzes.
-- **Interactive MCQ Quiz System (`mcqs.py`)**: Runs an interactive terminal-based quiz.
-- **Named Entity Chunker (`gen.py`)**: Analyzes named entity syntax trees using NLTK.
-- **Automated Test Suite (`test_qg.py`)**: Unit tests covering question generation, fill-in-the-blanks, and MCQ generation.
+- **Multi-Type Question Generation**: Generates **What**, **Who**, **Where**, and **When** questions using Named Entity Recognition (NER) and syntactic Part-of-Speech (POS) parsing.
+- **Smart Distractor Generation**: Uses **NLTK WordNet** hyponym/hypernym semantic trees and same-POS candidate matching to generate realistic multiple-choice options.
+- **Unified CLI (`main.py`)**: Run any engine capability (`quest`, `blanks`, `quiz`, `export`) from a single command line interface.
+- **JSON & CSV Export (`exporter.py`)**: Export generated question & answer pairs to structured `JSON` or `CSV` files for LMS integration, flashcard apps (Anki), or downstream NLP pipelines.
+- **100% Automated Test Coverage (`test_qg.py`)**: Fully verified unit test suite.
 
 ---
 
@@ -20,7 +20,7 @@ Updated and modernized for Python **3.10+**, **NLTK 3.9+**, and **TextBlob 0.20+
 
 ### 1. Prerequisites
 
-Python 3.10 or higher is recommended.
+Python 3.10 or higher is required.
 
 ```bash
 python --version
@@ -28,43 +28,55 @@ python --version
 
 ### 2. Install Dependencies
 
-Install the modern required packages:
-
 ```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-## Quick Start & Usage
+## Unified Command Line Interface (`main.py`)
 
-### 1. Generate Factual Questions (`quest.py`)
+### 1. Generate Factual Questions (`quest`)
 
-Run on any input text file:
-
-```bash
-python quest.py in.txt
-```
-
-To enable verbose mode (displays POS tags and rule matching info):
+Generates What, Who, Where, and When questions:
 
 ```bash
-python quest.py in.txt -v
+python main.py quest in.txt
 ```
 
-### 2. Generate Fill-in-the-Blanks Questions (`blanks.py`)
+### 2. Generate Fill-in-the-Blanks Questions (`blanks`)
+
+Generates fill-in-the-blanks with 4 multiple-choice options powered by WordNet smart distractors:
 
 ```bash
-python blanks.py file1.txt
+python main.py blanks in.txt
 ```
 
-### 3. Run Interactive MCQ Quiz (`mcqs.py`)
+### 3. Run Interactive MCQ Quiz (`quiz`)
+
+Launch an interactive terminal quiz session:
 
 ```bash
-python mcqs.py
+python main.py quiz
 ```
 
-### 4. Run Automated Unit Tests
+### 4. Export Questions to JSON or CSV (`export`)
+
+Export questions directly to structured JSON or CSV:
+
+```bash
+# Export to JSON
+python main.py export in.txt --format json --output questions.json
+
+# Export to CSV
+python main.py export in.txt --format csv --output questions.csv
+```
+
+---
+
+## Automated Unit Testing
+
+Run the comprehensive unit test suite:
 
 ```bash
 python -m unittest test_qg.py
@@ -72,48 +84,25 @@ python -m unittest test_qg.py
 
 ---
 
-## Penn Treebank POS Tags Reference
-
-| Tag | Description |
-|---|---|
-| `NNP` | Proper noun, singular |
-| `NN` | Noun, singular or mass |
-| `NNS` | Noun, plural |
-| `VBZ` | Verb, 3rd person singular present |
-| `VBG` | Verb, gerund or present participle |
-| `VBD` | Verb, past tense |
-| `VBN` | Verb, past participle |
-| `JJ` | Adjective |
-| `IN` | Preposition or subordinating conjunction |
-| `PRP` | Personal pronoun |
-
----
-
 ## Project Structure
 
 ```
 Question-and-Answer-Generation/
-├── quest.py               # Factual question generator (Main module)
-├── blanks.py              # Fill-in-the-blank question & options generator
-├── blanks1.py             # Simple fill-in-the-blank text generator
+├── main.py                # Unified CLI entrypoint (quest, blanks, quiz, export)
+├── quest.py               # Advanced multi-type question generator (What, Who, Where, When)
+├── blanks.py              # Fill-in-the-blanks generator with WordNet smart distractors
 ├── mcqs.py                # Interactive MCQ quiz runner
-├── gen.py                 # NLTK Named Entity syntax tree parser
-├── sample.py              # Probability-based question answer scoring
-├── example.py             # TextBlob POS tag analysis example
-├── test_qg.py             # Automated unit tests
-├── requirements.txt       # Updated Python package dependencies
+├── exporter.py            # JSON and CSV export engine
+├── test_qg.py             # Automated unit test suite
+├── requirements.txt       # Updated Python dependencies
 ├── .gitignore             # Git ignore configuration
 ├── README.md              # Project documentation
-├── report.md              # Project report
-├── in.txt                 # Sample text input file
-├── file1.txt              # Sample input text file 1
-├── file2.txt              # Sample input text file 2
-├── file3.txt              # Sample input text file 3
-└── test.txt               # Sample evaluation text file
+├── in.txt                 # Short text input sample
+└── test.txt               # Evaluation text file
 ```
 
 ---
 
 ## License & Attribution
 
-Originally created by Indrajith Indraprastham (2017). Modernized and refactored for current Python and NLP libraries.
+Originally created by Indrajith Indraprastham (2017). Enhanced, modernized, and expanded for modern Python and NLP pipelines.

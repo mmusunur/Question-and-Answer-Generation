@@ -1,12 +1,13 @@
 """
-Fill-in-the-Blanks Question Generator
-Generates fill-in-the-blank questions with multiple-choice distractor options from text input.
+Fill-in-the-Blanks Question Generator with Smart Distractor Generation.
+Uses NLP POS tagging and WordNet semantic lookup to create realistic multiple-choice options.
 """
 
 import sys
 import random
 import re
 import nltk
+from nltk.corpus import wordnet
 from textblob import TextBlob
 
 
@@ -17,6 +18,7 @@ def ensure_nltk_data():
         'punkt_tab',
         'averaged_perceptron_tagger',
         'averaged_perceptron_tagger_eng',
+        'wordnet',
         'brown',
     ]
     for pkg in packages:
@@ -26,17 +28,43 @@ def ensure_nltk_data():
             pass
 
 
+def get_wordnet_distractors(target_word, pos_tag='n', max_count=3):
+    """Fetch smart distractors using WordNet synsets/hypernyms/hyponyms."""
+    distractors = set()
+    synsets = wordnet.synsets(target_word, pos=pos_tag)
+    if not synsets:
+        synsets = wordnet.synsets(target_word)
+
+    for syn in synsets:
+        # Get hyponyms (more specific words)
+        for hyper in syn.hypernyms():
+            for hypo in hyper.hyponyms():
+                for lemma in hypo.lemmas():
+                    name = lemma.name().replace('_', ' ')
+                    if name.lower() != target_word.lower() and len(name) > 2:
+                        distractors.add(name.capitalize() if target_word[0].isupper() else name)
+                    if len(distractors) >= max_count:
+                        break
+                if len(distractors) >= max_count:
+                    break
+
+        if len(distractors) >= max_count:
+            break
+
+    return list(distractors)[:max_count]
+
+
 def replace_case_insensitive(word, sentence_text):
     """Replace word with blank line case-insensitively."""
-    pattern = re.compile(re.escape(word), re.IGNORECASE)
-    return pattern.sub('__________________', sentence_text)
+    pattern = re.compile(r'\b' + re.escape(word) + r'\b', re.IGNORECASE)
+    result, count = pattern.subn('__________________', sentence_text)
+    if count == 0:
+        result = sentence_text.replace(word, '__________________')
+    return result
 
 
 def remove_word(sentence_text, pos_dict):
-    """
-    Selects a target noun (proper noun NNP prioritized over common noun NN)
-    to replace with a blank line.
-    """
+    """Select target noun (prioritize Proper Noun NNP over NN)."""
     words = None
     if 'NNP' in pos_dict and pos_dict['NNP']:
         words = pos_dict['NNP']
@@ -47,23 +75,25 @@ def remove_word(sentence_text, pos_dict):
 
     if words:
         target_word = words[0]
-        words_sample = words[:4]
         replaced_text = replace_case_insensitive(target_word, sentence_text)
-        return (words_sample, sentence_text, replaced_text)
+        return (target_word, sentence_text, replaced_text)
+
     return (None, sentence_text, None)
 
 
 def generate_blanks_questions(text):
     """
-    Given an input text string, parses sentences and generates fill-in-the-blank questions.
-    Returns a list of tuples: (question_text, choices, correct_answer)
+    Parses sentences and generates fill-in-the-blank questions with smart distractors.
+    Returns list of tuples: (question_text, choices_list, correct_answer)
     """
     ensure_nltk_data()
     blob = TextBlob(text)
     sposs = {}
 
     for sentence in blob.sentences:
-        sent_str = str(sentence)
+        sent_str = str(sentence).strip()
+        if not sent_str:
+            continue
         poss = {}
         for word, tag in sentence.tags:
             if tag not in poss:
@@ -74,32 +104,36 @@ def generate_blanks_questions(text):
     questions_data = []
 
     for sent_str, poss in sposs.items():
-        words_list1, osentence, replaced = remove_word(sent_str, poss)
-        if replaced is None:
+        target_word, osentence, replaced = remove_word(sent_str, poss)
+        if not target_word or replaced == sent_str:
             continue
 
-        target_words = poss.get('NNP') or poss.get('NN') or []
-        distinct_candidates = list(dict.fromkeys(target_words))
+        # 1. Try WordNet smart distractors
+        distractors = get_wordnet_distractors(target_word, pos_tag='n', max_count=3)
 
-        for w in blob.words:
-            if len(distinct_candidates) >= 4:
+        # 2. Fallback to same-POS words from document text
+        same_pos_candidates = poss.get('NNP') or poss.get('NN') or []
+        for w in same_pos_candidates + [str(bw) for bw in blob.words]:
+            if len(distractors) >= 3:
                 break
-            if w not in distinct_candidates and len(w) > 2:
-                distinct_candidates.append(str(w))
+            w_str = str(w).strip()
+            if (w_str.lower() != target_word.lower() and 
+                w_str not in distractors and 
+                len(w_str) > 2 and 
+                w_str.isalpha()):
+                distractors.append(w_str.capitalize() if target_word[0].isupper() else w_str)
 
-        correct_answer = words_list1[0]
-        options = [correct_answer]
-        distractors = [num for num in distinct_candidates if num.lower() != correct_answer.lower()]
-        options.extend(distractors[:3])
-
-        # Fill remaining options if fewer than 4 distractors were found
+        # Build 4 choices
+        options = [target_word] + distractors[:3]
+        
+        # Ensure 4 unique choices
         while len(options) < 4:
-            dummy = f"Option_{len(options) + 1}"
+            dummy = f"Choice_{len(options) + 1}"
             if dummy not in options:
                 options.append(dummy)
 
         random.shuffle(options)
-        questions_data.append((replaced, options, correct_answer))
+        questions_data.append((replaced, options, target_word))
 
     return questions_data
 

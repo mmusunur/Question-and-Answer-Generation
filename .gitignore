@@ -63,3 +63,10 @@ venv.bak/
 *.swp
 *.swo
 *~
+
+# Exported outputs
+questions_output.json
+questions_output.csv
+questions.json
+questions.csv
+
