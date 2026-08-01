@@ -1,18 +1,41 @@
 """
-Automated Unit Test Suite for Question-and-Answer-Generation Engine.
+Automated Unit Test Suite for Question-and-Answer-Generation Engine & LLM Package.
 """
 
 import unittest
 import os
 import json
 import csv
+from qg_engine import QuestionGenerator, LLMProvider, DocChatbot, export_questions
 from quest import parse as parse_factual, gen_ne_questions
 from blanks import generate_blanks_questions, get_wordnet_distractors
 from mcqs import sample_quiz, QA
-from exporter import export_questions
 
 
 class TestQuestionGeneration(unittest.TestCase):
+
+    def test_reusable_question_generator_nlp(self):
+        qg = QuestionGenerator(mode="nlp")
+        text = "Akhil plays Bansoori. Osmosis is the movement of water."
+        factual_qs = qg.generate_factual_questions(text)
+        self.assertIsInstance(factual_qs, list)
+        self.assertGreaterEqual(len(factual_qs), 1)
+
+        mcq_qs = qg.generate_fill_in_blanks(text)
+        self.assertIsInstance(mcq_qs, list)
+        self.assertGreaterEqual(len(mcq_qs), 1)
+
+    def test_llm_provider_availability(self):
+        llm = LLMProvider()
+        # When no API key is set, is_available returns False cleanly
+        self.assertIsInstance(llm.is_available(), bool)
+
+    def test_doc_chatbot_fallback(self):
+        doc_text = "Osmosis is the movement of water. Raja-Yoga has eight steps."
+        bot = DocChatbot(doc_text)
+        reply = bot.chat("What is osmosis?")
+        self.assertIsInstance(reply, str)
+        self.assertIn("osmosis", reply.lower())
 
     def test_factual_question_generation(self):
         sample_text = "Bansoori is an Indian classical instrument. Akhil plays Bansoori."
@@ -74,7 +97,7 @@ class TestQuestionGeneration(unittest.TestCase):
 
         with open(output_file, "r", encoding="utf-8") as f:
             reader = list(csv.reader(f))
-            self.assertEqual(len(reader), count + 1)  # Header + rows
+            self.assertEqual(len(reader), count + 1)
 
         if os.path.exists(output_file):
             os.remove(output_file)

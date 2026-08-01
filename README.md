@@ -1,68 +1,80 @@
-# Automatic Question and Answer Generation Engine
+# Automatic Question and Answer Generation Engine & Chatbot
 
-An advanced NLP-powered Question and Answer Generation Engine that generates **Factual Questions** (What, Who, Where, When), **Fill-in-the-Blanks**, and **Multiple-Choice Questions (MCQs)** with smart distractor generation using **TextBlob**, **NLTK**, and **WordNet**.
+A reusable, high-accuracy Python framework and CLI tool for **NLP-based and LLM-powered** Question and Answer Generation, Fill-in-the-Blanks, Multiple-Choice Questions (MCQs), and Conversational Document Chat.
 
-Updated, modernized, and expanded for **Python 3.10+**, **NLTK 3.9+**, and **TextBlob 0.20+**.
-
----
-
-## Highlights & Performance Enhancements
-
-- **Multi-Type Question Generation**: Generates **What**, **Who**, **Where**, and **When** questions using Named Entity Recognition (NER) and syntactic Part-of-Speech (POS) parsing.
-- **Smart Distractor Generation**: Uses **NLTK WordNet** hyponym/hypernym semantic trees and same-POS candidate matching to generate realistic multiple-choice options.
-- **Unified CLI (`main.py`)**: Run any engine capability (`quest`, `blanks`, `quiz`, `export`) from a single command line interface.
-- **JSON & CSV Export (`exporter.py`)**: Export generated question & answer pairs to structured `JSON` or `CSV` files for LMS integration, flashcard apps (Anki), or downstream NLP pipelines.
-- **100% Automated Test Coverage (`test_qg.py`)**: Fully verified unit test suite.
+Modernized and expanded for **Python 3.10+**, **NLTK 3.9+**, **TextBlob 0.20+**, and **Google Gemini / OpenAI LLM APIs**.
 
 ---
 
-## Installation & Setup
+## Key Features
 
-### 1. Prerequisites
+- **Hybrid AI Engine (`qg_engine`)**: Uses **Google Gemini / OpenAI LLMs** when API keys are configured (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `LLM_API_KEY`) for state-of-the-art accuracy, with automatic seamless fallback to local NLTK & TextBlob NLP rules when offline.
+- **Conversational Document Chatbot (`DocChatbot`)**: Chat directly with any input document via terminal (`python main.py chat in.txt`) or import as a Python class.
+- **Multi-Type Question Generation**: Generates **What**, **Who**, **Where**, and **When** questions.
+- **WordNet Smart Distractor Generation**: Uses NLTK WordNet hypernym/hyponym semantic trees to create realistic multiple-choice options.
+- **JSON & CSV Export Engine**: Export generated Q&A pairs directly to structured `.json` or `.csv` files.
+- **Reusable Python Component (`qg_engine`)**: Easily import into external Python projects.
 
-Python 3.10 or higher is required.
+---
 
-```bash
-python --version
-```
+## Reusable Component Python API
 
-### 2. Install Dependencies
+You can import `qg_engine` into any Python project:
 
-```bash
-pip install -r requirements.txt
+```python
+from qg_engine import QuestionGenerator, DocChatbot
+
+# 1. Initialize Question Generator (Auto-detects LLM API keys or uses local NLP)
+qg = QuestionGenerator(mode="auto")
+
+text = "Osmosis is the movement of a solvent across a semipermeable membrane. Priya writes poems."
+
+# 2. Generate Factual Questions
+factual_qs = qg.generate_factual_questions(text)
+print(factual_qs)
+
+# 3. Generate Fill-in-the-Blank Multiple Choice Questions
+mcq_qs = qg.generate_fill_in_blanks(text)
+for q, choices, answer in mcq_qs:
+    print(f"Q: {q}\nChoices: {choices}\nAnswer: {answer}\n")
+
+# 4. Document Chatbot
+bot = DocChatbot(text)
+reply = bot.chat("What is osmosis?")
+print("Bot Reply:", reply)
 ```
 
 ---
 
 ## Unified Command Line Interface (`main.py`)
 
-### 1. Generate Factual Questions (`quest`)
+### 1. Document Chatbot Assistant (`chat`)
 
-Generates What, Who, Where, and When questions:
+Start an interactive AI chatbot session to query any text file:
+
+```bash
+python main.py chat in.txt
+```
+
+### 2. Generate Factual Questions (`quest`)
 
 ```bash
 python main.py quest in.txt
 ```
 
-### 2. Generate Fill-in-the-Blanks Questions (`blanks`)
-
-Generates fill-in-the-blanks with 4 multiple-choice options powered by WordNet smart distractors:
+### 3. Generate Fill-in-the-Blanks Questions (`blanks`)
 
 ```bash
 python main.py blanks in.txt
 ```
 
-### 3. Run Interactive MCQ Quiz (`quiz`)
-
-Launch an interactive terminal quiz session:
+### 4. Run Interactive MCQ Quiz (`quiz`)
 
 ```bash
 python main.py quiz
 ```
 
-### 4. Export Questions to JSON or CSV (`export`)
-
-Export questions directly to structured JSON or CSV:
+### 5. Export Questions to JSON or CSV (`export`)
 
 ```bash
 # Export to JSON
@@ -74,9 +86,25 @@ python main.py export in.txt --format csv --output questions.csv
 
 ---
 
+## LLM Configuration (Optional for High Accuracy)
+
+To enable LLM-backed question generation and chatbot responses, set your API key in your environment:
+
+```bash
+# Google Gemini
+set GEMINI_API_KEY=your_gemini_api_key_here
+
+# OpenAI
+set OPENAI_API_KEY=your_openai_api_key_here
+```
+
+If no key is set, the system automatically runs the local NLP engine.
+
+---
+
 ## Automated Unit Testing
 
-Run the comprehensive unit test suite:
+Run the unit test suite:
 
 ```bash
 python -m unittest test_qg.py
@@ -88,21 +116,26 @@ python -m unittest test_qg.py
 
 ```
 Question-and-Answer-Generation/
-├── main.py                # Unified CLI entrypoint (quest, blanks, quiz, export)
-├── quest.py               # Advanced multi-type question generator (What, Who, Where, When)
-├── blanks.py              # Fill-in-the-blanks generator with WordNet smart distractors
-├── mcqs.py                # Interactive MCQ quiz runner
-├── exporter.py            # JSON and CSV export engine
-├── test_qg.py             # Automated unit test suite
-├── requirements.txt       # Updated Python dependencies
-├── .gitignore             # Git ignore configuration
-├── README.md              # Project documentation
-├── in.txt                 # Short text input sample
-└── test.txt               # Evaluation text file
+├── qg_engine/                 # Reusable Python Package
+│   ├── __init__.py            # Exports QuestionGenerator, LLMProvider, DocChatbot, export_questions
+│   ├── core.py                # Main QuestionGenerator class (Hybrid LLM + Rule NLP)
+│   ├── llm_provider.py        # Google Gemini & OpenAI LLM REST integration
+│   ├── chatbot.py            # Conversational Document Chatbot engine
+│   └── exporter.py            # JSON / CSV Exporter module
+├── main.py                    # Unified CLI (quest, blanks, quiz, chat, export)
+├── quest.py                   # Factual question generator wrapper
+├── blanks.py                  # Fill-in-the-blanks generator wrapper
+├── mcqs.py                    # Interactive MCQ quiz runner
+├── test_qg.py                 # Automated unit test suite
+├── requirements.txt           # Python dependencies
+├── .gitignore
+├── README.md                  # Project documentation
+├── in.txt                     # Short text input sample
+└── test.txt                   # Evaluation text file
 ```
 
 ---
 
 ## License & Attribution
 
-Originally created by Indrajith Indraprastham (2017). Enhanced, modernized, and expanded for modern Python and NLP pipelines.
+Originally created by Indrajith Indraprastham (2017). Refactored, modernized, and expanded with hybrid LLM capabilities and reusable component architecture.
